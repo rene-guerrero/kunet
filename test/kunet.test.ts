@@ -160,6 +160,7 @@ describe('serveLan (Node dev host)', () => {
       const { code } = await (await fetch(`${base}/api/rooms?pid=pid-1`, { method: 'POST' })).json();
       expect(await (await fetch(`${base}/api/rooms/${code}`)).json()).toEqual({ exists: true, phase: 'lobby', freeSeats: 3 });
       expect(await (await fetch(`${base}/api/rooms/QQQQ`)).json()).toEqual({ exists: false });
+      expect(await (await fetch(`${base}/api/rooms`)).json()).toEqual({ rooms: [{ code, exists: true, phase: 'lobby', freeSeats: 3 }] });
 
       const ws = new WebSocket(`ws://127.0.0.1:${lan.port}/api/rooms/${code}/ws?pid=pid-1`);
       const msgs: unknown[] = [];

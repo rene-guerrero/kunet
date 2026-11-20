@@ -3,6 +3,7 @@
  * player (loopback), Wi-Fi joiners (a WebSocket server: Android plugin or the Node dev host), later
  * Nearby. Every transport ends in the same three calls, which mirror the Worker's routes:
  *   POST /api/rooms          → createRoom(pid)
+ *   GET  /api/rooms          → list()            (local hosts only, not the Worker)
  *   GET  /api/rooms/:code    → roomInfo(code)
  *   GET  /api/rooms/:code/ws → connect(code, pid, link)
  */
@@ -78,6 +79,11 @@ export class LocalHost {
   resumeRoom(code: string, data: unknown): void {
     this.rooms.get(code)?.stop();
     this.rooms.set(code, new LocalRoom(code, null, this.makeCore, this.roomOpts(code, { resume: data })));
+  }
+
+  /** the open rooms (GET /api/rooms on a local host: a page opened at the bare address finds its room) */
+  list(): ({ code: string } & RoomInfo)[] {
+    return [...this.rooms.entries()].map(([code, r]) => ({ code, ...r.info() })).filter((r) => r.exists);
   }
 
   roomInfo(code: string): RoomInfo {

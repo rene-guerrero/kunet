@@ -94,7 +94,7 @@ export async function startWifiHost(host: LocalHost, o: WifiHostOptions): Promis
     let r: { status: number; json: string };
     try {
       if (parts[0] !== 'api' || parts[1] !== 'rooms') r = json(404, { error: 'not_found' });
-      else if (parts.length === 2) r = e.method === 'POST' ? json(201, { code: host.createRoom(e.query.pid ?? null) }) : json(405, { error: 'method' });
+      else if (parts.length === 2) r = e.method === 'POST' ? json(201, { code: host.createRoom(e.query.pid ?? null) }) : json(200, { rooms: host.list() });
       else if (parts.length === 3 && e.method === 'GET') {
         const code = norm(decodeURIComponent(parts[2]));
         r = json(200, code ? host.roomInfo(code) : { exists: false });

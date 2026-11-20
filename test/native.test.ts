@@ -81,6 +81,8 @@ describe('kunet/native', () => {
     const code = JSON.parse(created.json).code as string;
     fake.fire('api', { rid: 2, method: 'GET', path: `/api/rooms/${code}`, query: {} });
     expect(JSON.parse(fake.calls.find((c) => c.o?.rid === 2)!.o.json)).toEqual({ exists: true, phase: 'lobby', freeSeats: 3 });
+    fake.fire('api', { rid: 9, method: 'GET', path: '/api/rooms', query: {} });
+    expect(JSON.parse(fake.calls.find((c) => c.o?.rid === 9)!.o.json)).toEqual({ rooms: [{ code, exists: true, phase: 'lobby', freeSeats: 3 }] });
     fake.fire('api', { rid: 3, method: 'GET', path: '/nope', query: {} });
     expect(fake.calls.find((c) => c.o?.rid === 3)!.o.status).toBe(404);
 

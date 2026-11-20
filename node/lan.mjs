@@ -4,6 +4,7 @@
  *
  *   GET  /                          → the game (index.html gets window.__KUNET_LOCAL__ injected)
  *   POST /api/rooms?pid=            → { code }
+ *   GET  /api/rooms                 → { rooms: [{ code, exists, phase, freeSeats }] }
  *   GET  /api/rooms/:code           → RoomInfo
  *   GET  /api/rooms/:code/ws?pid=   → WebSocket into the room
  *
@@ -91,6 +92,7 @@ export async function serveLan(o) {
       if (parts[0] === 'api') {
         if (parts[1] !== 'rooms') return sendJson(res, 404, { error: 'not_found' });
         if (parts.length === 2) {
+          if (req.method === 'GET') return sendJson(res, 200, { rooms: o.host.list ? o.host.list() : [] });
           if (req.method !== 'POST') return sendJson(res, 405, { error: 'method' });
           const code = o.host.createRoom(url.searchParams.get('pid'));
           log(`[lan] room ${code} created`);
