@@ -1,7 +1,9 @@
 package com.kunet.local;
 
 import android.content.Context;
+import android.net.wifi.WifiManager;
 import android.net.nsd.NsdManager;
+import android.os.Build;
 import android.net.nsd.NsdServiceInfo;
 import android.view.WindowManager;
 import com.getcapacitor.JSArray;
@@ -52,6 +54,32 @@ public class KuLocalPlugin extends Plugin {
   private NsdManager.DiscoveryListener discovery;
   private final ConcurrentLinkedQueue<NsdServiceInfo> toResolve = new ConcurrentLinkedQueue<>();
   private volatile boolean resolving;
+  /**
+   * Android's Wi-Fi power saving lets the radio doze between packets: on a quiet table a frame can wait
+   * hundreds of ms (worse on slower phones and through a laptop hotspot). While this device hosts or is
+   * joined to a room it holds a low-latency Wi-Fi lock (released as soon as neither is true).
+   */
+  private WifiManager.WifiLock wifiLock;
+
+  @SuppressWarnings("deprecation")
+  private synchronized void updateWifiLock() {
+    boolean need = (server != null && server.isRunning()) || !clients.isEmpty();
+    try {
+      if (need && wifiLock == null) {
+        WifiManager wm = (WifiManager) getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        if (wm == null) return;
+        int mode = Build.VERSION.SDK_INT >= 29 ? WifiManager.WIFI_MODE_FULL_LOW_LATENCY : WifiManager.WIFI_MODE_FULL_HIGH_PERF;
+        wifiLock = wm.createWifiLock(mode, "kunet:local-play");
+        wifiLock.setReferenceCounted(false);
+        wifiLock.acquire();
+      } else if (!need && wifiLock != null) {
+        if (wifiLock.isHeld()) wifiLock.release();
+        wifiLock = null;
+      }
+    } catch (Exception ignored) {
+      // no Wi-Fi service / permission: play on without the lock
+    }
+  }
 
   // ───────────────────────── host ─────────────────────────
 
@@ -63,6 +91,7 @@ public class KuLocalPlugin extends Plugin {
     try {
       if (server == null) server = new LanServer(handler);
       int p = server.start(port);
+      updateWifiLock();
       JSObject r = new JSObject();
       r.put("port", p);
       r.put("origins", JSArray.from(origins(p).toArray()));
@@ -77,6 +106,7 @@ public class KuLocalPlugin extends Plugin {
     if (server != null) server.stop();
     for (CompletableFuture<LanServer.ApiResponse> f : pendingApi.values()) f.complete(new LanServer.ApiResponse(503, "{\"error\":\"stopped\"}"));
     pendingApi.clear();
+    updateWifiLock();
     call.resolve();
   }
 
@@ -391,6 +421,7 @@ public class KuLocalPlugin extends Plugin {
 
       public void onClose(int code) {
         clients.remove(id);
+        updateWifiLock();
         JSObject ev = new JSObject();
         ev.put("id", id);
         ev.put("code", code);
@@ -398,6 +429,7 @@ public class KuLocalPlugin extends Plugin {
       }
     });
     clients.put(id, ws);
+    updateWifiLock();
     JSObject r = new JSObject();
     r.put("id", id);
     call.resolve(r);
@@ -414,6 +446,7 @@ public class KuLocalPlugin extends Plugin {
   public void clientClose(PluginCall call) {
     LanClient.Ws ws = clients.remove(call.getInt("id", -1));
     if (ws != null) ws.close(call.getInt("code", 1000), call.getString("reason", ""));
+    updateWifiLock();
     call.resolve();
   }
 
@@ -424,5 +457,6 @@ public class KuLocalPlugin extends Plugin {
     if (server != null) server.stop();
     for (LanClient.Ws ws : clients.values()) ws.close(1001, "app_closed");
     clients.clear();
+    updateWifiLock();
   }
 }
