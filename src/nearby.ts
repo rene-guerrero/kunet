@@ -25,6 +25,8 @@ interface NearbyPlugin {
   nearbySend(o: { id: string; data: string }): Promise<void>;
   nearbyDisconnect(o: { id: string }): Promise<void>;
   nearbyStop(): Promise<void>;
+  locationEnabled(): Promise<{ enabled: boolean }>;
+  openLocationSettings(): Promise<void>;
   addListener(event: string, cb: (ev: any) => void): Promise<PluginListenerHandle>;
 }
 
@@ -78,6 +80,20 @@ export async function nearbyPermission(request = false): Promise<boolean> {
     return false;
   }
 }
+
+/** is the phone's Location switched on? Nearby needs it to find phones over Bluetooth */
+export async function locationEnabled(): Promise<boolean> {
+  try {
+    return (await KuLocal.locationEnabled()).enabled;
+  } catch {
+    return true;
+  }
+}
+
+export const openLocationSettings = (): Promise<void> => KuLocal.openLocationSettings().catch(() => {});
+
+/** Nearby's "missing location permission" codes, also what it reports when Location is switched off */
+export const isLocationError = (message: string): boolean => /\b(8034|8033|8009)\b|LOCATION/i.test(message);
 
 /** "7KQM|Teléfono de Ana" → code + name */
 export function parseEndpointName(n: string): { code: string; name: string } {

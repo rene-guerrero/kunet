@@ -1,6 +1,9 @@
 package com.kunet.local;
 
 import android.content.Context;
+import android.content.Intent;
+import android.location.LocationManager;
+import android.provider.Settings;
 import android.net.wifi.WifiManager;
 import android.net.nsd.NsdManager;
 import android.os.Build;
@@ -546,6 +549,39 @@ public class KuLocalPlugin extends Plugin {
     if (getPermissionState(nearbyAlias()) == PermissionState.GRANTED) return true;
     call.reject("nearby permission not granted", "no_permission");
     return false;
+  }
+
+  /** Nearby discovery over Bluetooth needs the phone's Location switched on (else: error 8034) */
+  @PluginMethod
+  public void locationEnabled(PluginCall call) {
+    boolean on;
+    try {
+      LocationManager lm = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+      if (Build.VERSION.SDK_INT >= 28) on = lm != null && lm.isLocationEnabled();
+      else {
+        @SuppressWarnings("deprecation")
+        int mode = Settings.Secure.getInt(getContext().getContentResolver(), Settings.Secure.LOCATION_MODE, Settings.Secure.LOCATION_MODE_OFF);
+        on = mode != Settings.Secure.LOCATION_MODE_OFF;
+      }
+    } catch (Exception e) {
+      on = true; // unknown: let Nearby try
+    }
+    JSObject r = new JSObject();
+    r.put("enabled", on);
+    call.resolve(r);
+  }
+
+  /** Android's location settings, so the player can switch Location on */
+  @PluginMethod
+  public void openLocationSettings(PluginCall call) {
+    try {
+      Intent i = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+      i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      getContext().startActivity(i);
+      call.resolve();
+    } catch (Exception e) {
+      call.reject("no location settings", "unavailable");
+    }
   }
 
   @PluginMethod
