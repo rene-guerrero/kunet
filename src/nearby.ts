@@ -95,6 +95,14 @@ type Handler = {
   lost?: (id: string) => void;
 };
 const handlers = new Set<Handler>();
+const errorHandlers = new Set<(where: string, message: string) => void>();
+
+/** Nearby failures (advertise / discover / connect…) as they happen, e.g. to show them; returns unsubscribe */
+export function onNearbyError(f: (where: string, message: string) => void): () => void {
+  errorHandlers.add(f);
+  void wire();
+  return () => errorHandlers.delete(f);
+}
 let wired: Promise<void> | null = null;
 function wire(): Promise<void> {
   wired ??= (async () => {
@@ -103,7 +111,10 @@ function wire(): Promise<void> {
     await KuLocal.addListener('nearbyClose', (e: { id: string }) => handlers.forEach((h) => h.close?.(e.id)));
     await KuLocal.addListener('nearbyFound', (e: { id: string; name: string }) => handlers.forEach((h) => h.found?.(e.id, e.name)));
     await KuLocal.addListener('nearbyLost', (e: { id: string }) => handlers.forEach((h) => h.lost?.(e.id)));
-    await KuLocal.addListener('nearbyError', (e: { where: string; message: string }) => console.warn('[nearby]', e.where, e.message));
+    await KuLocal.addListener('nearbyError', (e: { where: string; message: string }) => {
+      console.warn('[nearby]', e.where, e.message);
+      errorHandlers.forEach((f) => f(e.where, e.message));
+    });
   })();
   return wired;
 }
@@ -161,7 +172,8 @@ export async function startNearbyHost(host: LocalHost, o: { game: string; name: 
   };
   handlers.add(h);
   return {
-    advertise: (code) => KuLocal.nearbyAdvertise({ game: o.game, name: o.name, code }).catch(() => {}),
+    advertise: (code) =>
+      KuLocal.nearbyAdvertise({ game: o.game, name: o.name, code }).catch((e: unknown) => errorHandlers.forEach((f) => f('advertise', String((e as Error)?.message ?? e)))),
     stop: async () => {
       handlers.delete(h);
       for (const id of [...links.keys()]) drop(id);
@@ -183,7 +195,7 @@ const lastSeen = new Map<string, string>();
 let discoveries = 0;
 
 async function startDiscovery(game: string): Promise<void> {
-  if (discoveries++ === 0) await KuLocal.nearbyDiscover({ game }).catch(() => {});
+  if (discoveries++ === 0) await KuLocal.nearbyDiscover({ game }).catch((e: unknown) => errorHandlers.forEach((f) => f('discover', String((e as Error)?.message ?? e))));
 }
 function stopDiscovery(): void {
   if (discoveries > 0 && --discoveries === 0) void KuLocal.nearbyStopDiscovery().catch(() => {});

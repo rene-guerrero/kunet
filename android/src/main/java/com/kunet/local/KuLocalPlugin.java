@@ -47,9 +47,10 @@ import org.json.JSONObject;
   name = "KuLocal",
   // Nearby Connections needs different runtime permissions per Android version: one alias per group
   permissions = {
-    @Permission(alias = "nearby33", strings = { "android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_ADVERTISE", "android.permission.BLUETOOTH_CONNECT", "android.permission.NEARBY_WIFI_DEVICES" }),
-    @Permission(alias = "nearby31", strings = { "android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_ADVERTISE", "android.permission.BLUETOOTH_CONNECT", "android.permission.ACCESS_FINE_LOCATION" }),
-    @Permission(alias = "nearby29", strings = { "android.permission.ACCESS_FINE_LOCATION" }),
+    // (location in every group: Google's Nearby sample asks for it on Android 12+ too, and discovery fails without it)
+    @Permission(alias = "nearby33", strings = { "android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_ADVERTISE", "android.permission.BLUETOOTH_CONNECT", "android.permission.NEARBY_WIFI_DEVICES", "android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_FINE_LOCATION" }),
+    @Permission(alias = "nearby31", strings = { "android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_ADVERTISE", "android.permission.BLUETOOTH_CONNECT", "android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_FINE_LOCATION" }),
+    @Permission(alias = "nearby29", strings = { "android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_FINE_LOCATION" }),
     @Permission(alias = "nearby23", strings = { "android.permission.ACCESS_COARSE_LOCATION" }),
   }
 )
