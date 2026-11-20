@@ -18,7 +18,7 @@ export interface LocalServed {
  * The origin to put in join links and QR codes: this page's own origin, unless the page was opened on
  * the host machine itself (localhost), which other devices cannot reach — then the host's LAN address.
  */
-export function joinOrigin(s: LocalServed, loc: { origin: string; hostname: string } = location): string {
+export function joinOrigin(s: LocalServed, loc: { origin: string; hostname: string } = (globalThis as unknown as { location: { origin: string; hostname: string } }).location): string {
   const loopback = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/.test(loc.hostname);
   return (loopback && s.origins?.[0]) || loc.origin;
 }

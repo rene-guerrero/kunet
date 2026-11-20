@@ -23,7 +23,8 @@ interface Entry {
 }
 
 const randomSeed = (): number => {
-  const c = globalThis.crypto;
+  // (no DOM / Node typings assumed: kunet also compiles inside a Worker's tsconfig)
+  const c = (globalThis as { crypto?: { getRandomValues(a: Uint32Array): Uint32Array } }).crypto;
   if (c?.getRandomValues) return c.getRandomValues(new Uint32Array(1))[0] | 0;
   return (Math.random() * 0x7fffffff) | 0;
 };
