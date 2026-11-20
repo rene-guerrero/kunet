@@ -44,6 +44,8 @@ export interface Attachment {
 /** what a game's RoomCore needs from its host platform (the game's own CoreIO<S> is this shape) */
 export interface CoreIO<S> {
   now(): number;
+  /** a uniform random number in [0, 1) (KuCards' core uses it; others may ignore it) */
+  random(): number;
   seed(): number;
   sockets(): S[];
   attachment(s: S): Attachment | null;

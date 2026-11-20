@@ -46,6 +46,7 @@ export class LocalRoom {
     this.core = makeCore<Link>(
       {
         now: this.now,
+        random: Math.random,
         seed: randomSeed,
         sockets: () => [...this.links].filter(([, e]) => e.open).map(([l]) => l),
         attachment: (l) => this.links.get(l)?.att ?? null,
