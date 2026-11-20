@@ -179,3 +179,13 @@ describe('serveLan (Node dev host)', () => {
     }
   });
 });
+
+describe('qrSvg', () => {
+  it('draws a square SVG with modules for a join URL', async () => {
+    const { qrSvg } = await import('../src');
+    const svg = qrSvg('http://192.168.1.37:8787/?sala=7KQM');
+    expect(svg.startsWith('<svg')).toBe(true);
+    expect(svg).toMatch(/viewBox="0 0 (\d+) \1"/);
+    expect((svg.match(/h1v1h-1z/g) ?? []).length).toBeGreaterThan(100);
+  });
+});

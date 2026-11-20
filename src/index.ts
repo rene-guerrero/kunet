@@ -3,3 +3,4 @@ export { LocalRoom, type LocalRoomOptions } from './localRoom';
 export { LocalHost, LocalHostError, type LocalHostOptions } from './localHost';
 export { linkPair, loopbackBackend, type Pair } from './loopback';
 export { localServed, type LocalServed } from './served';
+export { qrSvg } from './qr';
