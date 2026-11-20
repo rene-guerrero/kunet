@@ -78,8 +78,11 @@ export async function serveLan(o) {
   if (!existsSync(join(root, 'index.html'))) throw new Error(`no index.html in ${root} (build the game first)`);
   const log = o.log ?? ((m) => console.log(m));
   const norm = o.normalizeCode ?? ((s) => s.toUpperCase());
-  const inject = `<script>window.__KUNET_LOCAL__=${JSON.stringify({ game: o.game, kind: 'node', name: o.name ?? '' })}</script>`;
-  const indexHtml = () => readFileSync(join(root, 'index.html'), 'utf8').replace('<head>', `<head>${inject}`);
+  let port = o.port ?? 8787;
+  // the addresses other devices use (read per request: Wi-Fi may change while the host runs)
+  const inject = () =>
+    `<script>window.__KUNET_LOCAL__=${JSON.stringify({ game: o.game, kind: 'node', name: o.name ?? '', origins: lanAddresses().map((a) => `http://${a.address}:${port}`) })}</script>`;
+  const indexHtml = () => readFileSync(join(root, 'index.html'), 'utf8').replace('<head>', `<head>${inject()}`);
 
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://local');
@@ -169,7 +172,6 @@ export async function serveLan(o) {
       server.once('listening', onOk);
       server.listen(port, o.bind ?? '0.0.0.0');
     });
-  let port = o.port ?? 8787;
   for (let i = 0; ; i++) {
     try {
       port = await listen(port);

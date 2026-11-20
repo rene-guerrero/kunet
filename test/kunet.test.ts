@@ -24,7 +24,7 @@ const fakeCore: MakeCore = <S,>(io: CoreIO<S>, resume: unknown): RoomCoreLike<S>
       core.data = { code, host: host ?? '', said: [], tickAt: null, idleAt: io.now() + 5000 };
       return true;
     },
-    info: () => (core.data ? { exists: true as const, phase: 'lobby', freeSeats: 3 } : { exists: false as const }),
+    info: () => (core.data ? { exists: true, phase: 'lobby', freeSeats: 3 } : { exists: false }),
     accept(s: S, pid: string | null) {
       io.setAttachment(s, { pid, hello: false });
       if (!core.data) {
@@ -151,7 +151,7 @@ describe('serveLan (Node dev host)', () => {
     try {
       const base = `http://127.0.0.1:${lan.port}`;
       const page = await (await fetch(`${base}/?sala=ABCD`)).text();
-      expect(page).toContain('window.__KUNET_LOCAL__={"game":"testgame","kind":"node","name":""}');
+      expect(page).toContain('window.__KUNET_LOCAL__={"game":"testgame","kind":"node","name":"","origins":');
       const js = await fetch(`${base}/app.js`);
       expect(js.headers.get('content-type')).toContain('javascript');
       expect((await fetch(`${base}/%2e%2e%2f%2e%2e%2fsecret.txt`)).status).not.toBe(200);
@@ -187,5 +187,15 @@ describe('qrSvg', () => {
     expect(svg.startsWith('<svg')).toBe(true);
     expect(svg).toMatch(/viewBox="0 0 (\d+) \1"/);
     expect((svg.match(/h1v1h-1z/g) ?? []).length).toBeGreaterThan(100);
+  });
+});
+
+describe('joinOrigin', () => {
+  it('uses the LAN address when the page is on the host itself', async () => {
+    const { joinOrigin } = await import('../src');
+    const s = { game: 'g', kind: 'node' as const, name: '', origins: ['http://192.168.1.5:8787'] };
+    expect(joinOrigin(s, { origin: 'http://localhost:8787', hostname: 'localhost' })).toBe('http://192.168.1.5:8787');
+    expect(joinOrigin(s, { origin: 'http://10.0.0.2:8787', hostname: '10.0.0.2' })).toBe('http://10.0.0.2:8787');
+    expect(joinOrigin({ ...s, origins: [] }, { origin: 'http://localhost:8787', hostname: 'localhost' })).toBe('http://localhost:8787');
   });
 });

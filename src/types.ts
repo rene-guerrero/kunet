@@ -21,7 +21,11 @@ export interface Backend {
 }
 
 /** GET /api/rooms/:code (each game's RoomInfoResponse has this shape) */
-export type RoomInfo = { exists: false } | { exists: true; phase: string; freeSeats: number };
+export interface RoomInfo {
+  exists: boolean;
+  phase?: string;
+  freeSeats?: number;
+}
 
 /** one joiner's connection, as the host sees it */
 export interface Link {

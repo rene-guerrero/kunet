@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./node": "./node/lan.mjs"
   },
+  "sideEffects": false,
   "files": [
     "src",
     "node"

@@ -10,6 +10,17 @@ export interface LocalServed {
   kind: 'node' | 'android';
   /** the host's name to show ("Teléfono de Ana"), may be empty */
   name: string;
+  /** origins other devices can reach (http://192.168.1.37:8787), best first */
+  origins?: string[];
+}
+
+/**
+ * The origin to put in join links and QR codes: this page's own origin, unless the page was opened on
+ * the host machine itself (localhost), which other devices cannot reach — then the host's LAN address.
+ */
+export function joinOrigin(s: LocalServed, loc: { origin: string; hostname: string } = location): string {
+  const loopback = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/.test(loc.hostname);
+  return (loopback && s.origins?.[0]) || loc.origin;
 }
 
 export function localServed(game: string): LocalServed | null {
