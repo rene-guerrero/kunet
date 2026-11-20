@@ -6,25 +6,43 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./native": "./src/native.ts",
     "./node": "./node/lan.mjs"
   },
   "sideEffects": false,
   "files": [
     "src",
-    "node"
+    "node",
+    "android/src",
+    "android/build.gradle"
   ],
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:java": "node test/java/run.mjs"
   },
   "dependencies": {
     "qrcode-generator": "2.0.4",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@capacitor/core": "^8.6.2",
     "@types/node": "^22.10.0",
     "@types/ws": "^8.5.13",
     "typescript": "^5.6.3",
     "vitest": "^2.1.5"
+  },
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=7"
+  },
+  "peerDependenciesMeta": {
+    "@capacitor/core": {
+      "optional": true
+    }
   }
 }
