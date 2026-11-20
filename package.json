@@ -14,7 +14,8 @@
     "src",
     "node",
     "android/src",
-    "android/build.gradle"
+    "android/build.gradle",
+    "android/proguard-rules.pro"
   ],
   "scripts": {
     "test": "vitest run",

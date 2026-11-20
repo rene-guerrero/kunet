@@ -22,6 +22,8 @@ android {
     defaultConfig {
         minSdkVersion project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 24
         targetSdkVersion project.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 36
+        // keep rules applied to the app that uses the plugin when it shrinks its code (R8)
+        consumerProguardFiles 'proguard-rules.pro'
     }
     buildTypes {
         release {
