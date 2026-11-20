@@ -8,7 +8,8 @@
  *    client carries them instead.
  *  - discoverHosts(game): hosts nearby on the same network (NSD / mDNS), each with its room code.
  */
-import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
+import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
+import { KuLocal as plugin } from './plugin';
 import type { LocalHost } from './localHost';
 import type { Backend, Conn, Link, RoomInfo } from './types';
 
@@ -31,7 +32,7 @@ interface KuLocalPlugin {
   addListener(event: string, cb: (ev: any) => void): Promise<PluginListenerHandle>;
 }
 
-const KuLocal = registerPlugin<KuLocalPlugin>('KuLocal');
+const KuLocal = plugin as KuLocalPlugin;
 
 /** the app can host and join local games (Android build with the plugin) */
 export function nativeLocalAvailable(): boolean {
@@ -263,3 +264,5 @@ export function discoverHosts(game: string, onChange: (hosts: NearbyHost[]) => v
     for (const h of handles) void h.then((x) => x.remove());
   };
 }
+
+export * from './nearby';

@@ -11,7 +11,10 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,7 +43,16 @@ import org.json.JSONObject;
  *   methods request, connect, clientSend, clientClose, discover, stopDiscovery, getAddresses
  *   events  clientOpen {id}, clientMessage {id, data}, clientClose {id, code}, found {...}, lost {key}
  */
-@CapacitorPlugin(name = "KuLocal")
+@CapacitorPlugin(
+  name = "KuLocal",
+  // Nearby Connections needs different runtime permissions per Android version: one alias per group
+  permissions = {
+    @Permission(alias = "nearby33", strings = { "android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_ADVERTISE", "android.permission.BLUETOOTH_CONNECT", "android.permission.NEARBY_WIFI_DEVICES" }),
+    @Permission(alias = "nearby31", strings = { "android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_ADVERTISE", "android.permission.BLUETOOTH_CONNECT", "android.permission.ACCESS_FINE_LOCATION" }),
+    @Permission(alias = "nearby29", strings = { "android.permission.ACCESS_FINE_LOCATION" }),
+    @Permission(alias = "nearby23", strings = { "android.permission.ACCESS_COARSE_LOCATION" }),
+  }
+)
 public class KuLocalPlugin extends Plugin {
   private LanServer server;
   private String game = "";
@@ -63,7 +75,7 @@ public class KuLocalPlugin extends Plugin {
 
   @SuppressWarnings("deprecation")
   private synchronized void updateWifiLock() {
-    boolean need = (server != null && server.isRunning()) || !clients.isEmpty();
+    boolean need = (server != null && server.isRunning()) || !clients.isEmpty() || (nearby != null && nearby.busy());
     try {
       if (need && wifiLock == null) {
         WifiManager wm = (WifiManager) getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
@@ -450,8 +462,157 @@ public class KuLocalPlugin extends Plugin {
     call.resolve();
   }
 
+  // ───────────────────────── Nearby Connections (Bluetooth, no network needed) ─────────────────────────
+
+  private NearbyHub nearby;
+
+  private static String nearbyAlias() {
+    if (Build.VERSION.SDK_INT >= 33) return "nearby33";
+    if (Build.VERSION.SDK_INT >= 31) return "nearby31";
+    if (Build.VERSION.SDK_INT >= 29) return "nearby29";
+    return "nearby23";
+  }
+
+  private NearbyHub nearby() {
+    if (nearby == null) {
+      nearby = new NearbyHub(getContext(), new NearbyHub.Events() {
+        public void found(String id, String name) {
+          JSObject e = new JSObject();
+          e.put("id", id);
+          e.put("name", name);
+          notifyListeners("nearbyFound", e);
+        }
+
+        public void lost(String id) {
+          JSObject e = new JSObject();
+          e.put("id", id);
+          notifyListeners("nearbyLost", e);
+        }
+
+        public void open(String id, boolean incoming) {
+          JSObject e = new JSObject();
+          e.put("id", id);
+          e.put("incoming", incoming);
+          notifyListeners("nearbyOpen", e);
+          updateWifiLock();
+        }
+
+        public void data(String id, String data) {
+          JSObject e = new JSObject();
+          e.put("id", id);
+          e.put("data", data);
+          notifyListeners("nearbyData", e);
+        }
+
+        public void close(String id) {
+          JSObject e = new JSObject();
+          e.put("id", id);
+          notifyListeners("nearbyClose", e);
+        }
+
+        public void error(String where, String message) {
+          JSObject e = new JSObject();
+          e.put("where", where);
+          e.put("message", message == null ? "" : message);
+          notifyListeners("nearbyError", e);
+        }
+      });
+    }
+    return nearby;
+  }
+
+  /** {request?: boolean} -> {granted}: asks Android only when request is true and not granted yet */
+  @PluginMethod
+  public void nearbyPermission(PluginCall call) {
+    String alias = nearbyAlias();
+    if (getPermissionState(alias) == PermissionState.GRANTED || !Boolean.TRUE.equals(call.getBoolean("request", false))) {
+      JSObject r = new JSObject();
+      r.put("granted", getPermissionState(alias) == PermissionState.GRANTED);
+      call.resolve(r);
+      return;
+    }
+    requestPermissionForAlias(alias, call, "nearbyPermissionResult");
+  }
+
+  @PermissionCallback
+  private void nearbyPermissionResult(PluginCall call) {
+    JSObject r = new JSObject();
+    r.put("granted", getPermissionState(nearbyAlias()) == PermissionState.GRANTED);
+    call.resolve(r);
+  }
+
+  private boolean nearbyAllowed(PluginCall call) {
+    if (getPermissionState(nearbyAlias()) == PermissionState.GRANTED) return true;
+    call.reject("nearby permission not granted", "no_permission");
+    return false;
+  }
+
+  @PluginMethod
+  public void nearbyAdvertise(PluginCall call) {
+    if (!nearbyAllowed(call)) return;
+    try {
+      nearby().stopAdvertising();
+      nearby().advertise(call.getString("code", "") + "|" + call.getString("name", ""), "kunet." + call.getString("game", "kunet"));
+      call.resolve();
+    } catch (Exception e) {
+      call.reject("advertise failed: " + e.getMessage(), "nearby_failed");
+    }
+  }
+
+  @PluginMethod
+  public void nearbyStopAdvertise(PluginCall call) {
+    if (nearby != null) nearby.stopAdvertising();
+    call.resolve();
+  }
+
+  @PluginMethod
+  public void nearbyDiscover(PluginCall call) {
+    if (!nearbyAllowed(call)) return;
+    try {
+      nearby().stopDiscovery();
+      nearby().discover("kunet." + call.getString("game", "kunet"));
+      call.resolve();
+    } catch (Exception e) {
+      call.reject("discovery failed: " + e.getMessage(), "nearby_failed");
+    }
+  }
+
+  @PluginMethod
+  public void nearbyStopDiscovery(PluginCall call) {
+    if (nearby != null) nearby.stopDiscovery();
+    call.resolve();
+  }
+
+  @PluginMethod
+  public void nearbyConnect(PluginCall call) {
+    if (!nearbyAllowed(call)) return;
+    nearby().connect(call.getString("name", "Ku"), call.getString("id", ""));
+    call.resolve();
+  }
+
+  @PluginMethod
+  public void nearbySend(PluginCall call) {
+    if (nearby != null) nearby.send(call.getString("id", ""), call.getString("data", ""));
+    call.resolve();
+  }
+
+  @PluginMethod
+  public void nearbyDisconnect(PluginCall call) {
+    if (nearby != null) nearby.disconnect(call.getString("id", ""));
+    updateWifiLock();
+    call.resolve();
+  }
+
+  @PluginMethod
+  public void nearbyStop(PluginCall call) {
+    if (nearby != null) nearby.stopAll();
+    updateWifiLock();
+    call.resolve();
+  }
+
   @Override
   protected void handleOnDestroy() {
+    if (nearby != null) nearby.stopAll();
     stopAdvertising();
     stopDiscovering();
     if (server != null) server.stop();
