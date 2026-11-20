@@ -1,0 +1,28 @@
+{
+  "name": "kunet",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Multiplayer plumbing for the Ku table games: room transports, local (Wi-Fi) hosting, client connection",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./node/lan.mjs"
+  },
+  "files": [
+    "src",
+    "node"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  }
+}
